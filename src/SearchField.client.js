@@ -12,9 +12,9 @@ import {useLocation} from './LocationContext.client';
 import Spinner from './Spinner';
 
 export default function SearchField() {
-  const [text, setText] = useState('');
+  const [location, setLocation] = useLocation();
+  const [text, setText] = useState(location.searchText);
   const [isSearching, startSearching] = useTransition();
-  const [, setLocation] = useLocation();
   return (
     <form className="search" role="search" onSubmit={(e) => e.preventDefault()}>
       <label className="offscreen" htmlFor="sidebar-search-input">
