@@ -6,8 +6,7 @@
  *
  */
 
-import {fetch} from 'react-fetch';
-
+import {use} from 'react';
 import {db} from './db.server';
 import SidebarNote from './SidebarNote';
 
@@ -17,9 +16,10 @@ export default function NoteList({searchText}) {
   // WARNING: This is for demo purposes only.
   // We don't encourage this in real apps. There are far safer ways to access
   // data in a real application!
-  const notes = db.query(
-    `select * from notes where title ilike $1 order by id desc`,
-    ['%' + searchText + '%']
+  const notes = use(
+    db.query(`select * from notes where title ilike $1 order by id desc`, [
+      '%' + searchText + '%',
+    ])
   ).rows;
 
   // Now let's see how the Suspense boundary above lets us not block on this.

@@ -6,8 +6,7 @@
  *
  */
 
-import {fetch} from 'react-fetch';
-import {readFile} from 'react-fs';
+import {use} from 'react';
 import {format} from 'date-fns';
 import path from 'path';
 
@@ -16,10 +15,12 @@ import EditButton from './EditButton.client';
 import NoteEditor from './NoteEditor.client';
 
 export default function Note({selectedId, isEditing}) {
-  const note =
+  const response =
     selectedId != null
-      ? fetch(`http://localhost:4000/notes/${selectedId}`).json()
+      ? use(fetch(`http://localhost:4000/notes/${selectedId}`))
       : null;
+
+  const note = response ? use(response.json()) : null;
 
   if (note === null) {
     if (isEditing) {
