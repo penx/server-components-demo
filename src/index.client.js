@@ -6,8 +6,9 @@
  *
  */
 
-import {createRoot} from 'react-dom';
+import {hydrateRoot} from 'react-dom/client';
 import Root from './Root.client';
+import {createFromFetch} from 'react-server-dom-webpack/client';
 
 const search = new URLSearchParams(window.location.search);
 const initialLocation = {
@@ -16,12 +17,14 @@ const initialLocation = {
   searchText: search.get('searchText') || '',
 };
 
-const initialCache = new Map();
-const root = createRoot(document.getElementById('root'));
-root.render(
-  <Root initialCache={initialCache} initialLocation={initialLocation} />
-);
+const getServerComponent = (key) =>
+  createFromFetch(fetch('/react?location=' + encodeURIComponent(key)));
 
-// Note: in this example, the initial page is rendered on the client.
-// However, the intended solution (which isn't built out yet) is to
-// have the server send the initial HTML, and hydrate from it.
+hydrateRoot(
+  document,
+  <Root
+    assets={window.assetManifest}
+    getServerComponent={getServerComponent}
+    initialLocation={initialLocation}
+  />
+);

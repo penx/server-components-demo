@@ -6,8 +6,12 @@
  *
  */
 
-import {unstable_getCacheForType, unstable_useCacheRefresh} from 'react';
-import {createFromFetch} from 'react-server-dom-webpack/client';
+import {
+  createContext,
+  unstable_getCacheForType,
+  unstable_useCacheRefresh,
+  useContext,
+} from 'react';
 
 function createResponseCache() {
   return new Map();
@@ -22,14 +26,27 @@ export function useRefresh() {
 
 export function useServerResponse(location) {
   const key = JSON.stringify(location);
-  const cache = unstable_getCacheForType(createResponseCache);
-  let response = cache.get(key);
+  const getServerComponent = useGetServerComponent();
+  let response, cache;
+  try {
+    // getCacheForType is not currently implemented in ReactDOMServer
+    cache = unstable_getCacheForType(createResponseCache);
+    response = cache.get(key);
+  } catch (e) {
+    cache = null;
+    response = null;
+  }
   if (response) {
     return response;
   }
-  response = createFromFetch(
-    fetch('/react?location=' + encodeURIComponent(key))
-  );
-  cache.set(key, response);
+  response = getServerComponent(key);
+  if (cache) {
+    cache.set(key, response);
+  }
   return response;
 }
+
+const GetServerComponentContext = createContext();
+
+export const GetServerComponentProvider = GetServerComponentContext.Provider;
+const useGetServerComponent = () => useContext(GetServerComponentContext);

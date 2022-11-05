@@ -26,7 +26,6 @@ Server Components are an experimental feature and **are not ready for adoption**
 
 If you use this demo to compare React Server Components to the framework of your choice, keep this in mind:
 
-* **This demo doesn’t have server rendering.** Server Components are a separate (but complementary) technology from Server Rendering (SSR). Server Components let you run some of your components purely on the server. SSR, on the other hand, lets you generate HTML before any JavaScript loads. This demo *only* shows Server Components, and not SSR. Because it doesn't have SSR, the initial page load in this demo has a client-server network waterfall, and **will be much slower than any SSR framework**. However, Server Components are meant to be integrated together with SSR, and they *will* be in a future release.
 * **This demo doesn’t have an efficient bundling strategy.** When you use Server Components, a bundler plugin will automatically split the client JS bundle. However, the way it's currently being split is not necessarily optimal. We are investigating more efficient ways to split the bundles, but they are out of scope of this demo.
 * **This demo doesn’t have partial refetching.** Currently, when you click on different “notes”, the entire app shell is refetched from the server. However, that’s not ideal: for example, it’s unnecessary to refetch the sidebar content if all that changed is the inner content of the right pane. Partial refetching is an [open area of research](https://github.com/josephsavona/rfcs/blob/server-components/text/0000-server-components.md#open-areas-of-research) and we don’t yet know how exactly it will work.
 
@@ -34,7 +33,7 @@ This demo is provided “as is” to show the parts that are ready for experimen
 
 ## Setup
 
-You will need to have nodejs >=14.9.0 in order to run this demo. [Node 14 LTS](https://nodejs.org/en/about/releases/) is a good choice! (If you use `nvm`, run `nvm i` before running `npm install` to install the recommended Node version.)
+You will need to have nodejs >=18 in order to run this demo. [Node 18 LTS](https://nodejs.org/en/about/releases/) is a good choice! (If you use `nvm`, run `nvm i` before running `npm install` to install the recommended Node version.)
 
   ```
   npm install
@@ -141,6 +140,7 @@ You can watch a [recorded walkthrough of all these demo points here](https://you
 - [Lauren Tan](https://twitter.com/sugarpirate_)
 - [Sebastian Markbåge](https://twitter.com/sebmarkbage)
 - [Tate Strickland](http://www.tatestrickland.com/) (Design)
+- [Alasdair McLeay](https://twitter.com/penx) (Routing and SSR)
 
 ## [Code of Conduct](https://engineering.fb.com/codeofconduct/)
 Facebook has adopted a Code of Conduct that we expect project participants to adhere to. Please read the [full text](https://engineering.fb.com/codeofconduct/) so that you can understand what actions will and will not be tolerated.

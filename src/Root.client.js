@@ -9,16 +9,21 @@
 import {useState, Suspense, useCallback, use} from 'react';
 import {ErrorBoundary} from 'react-error-boundary';
 
-import {useServerResponse} from './Cache.client';
+import {GetServerComponentProvider, useServerResponse} from './Cache.client';
+import Html from './Html';
 import {LocationContext} from './LocationContext.client';
 
-export default function Root({initialCache, initialLocation}) {
+export default function Root({assets, initialLocation, getServerComponent}) {
   return (
-    <Suspense fallback={null}>
-      <ErrorBoundary FallbackComponent={Error}>
-        <Content initialLocation={initialLocation} />
-      </ErrorBoundary>
-    </Suspense>
+    <GetServerComponentProvider value={getServerComponent}>
+      <Html assets={assets} title="Hello">
+        <Suspense>
+          <ErrorBoundary FallbackComponent={Error}>
+            <Content initialLocation={initialLocation} />
+          </ErrorBoundary>
+        </Suspense>
+      </Html>
+    </GetServerComponentProvider>
   );
 }
 

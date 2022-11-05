@@ -8,8 +8,6 @@
 
 'use strict';
 
-const register = require('react-server-dom-webpack/node-register');
-register();
 const babelRegister = require('@babel/register');
 
 babelRegister({
@@ -21,24 +19,119 @@ babelRegister({
   ],
 });
 
+// Our client code imports createFromReadableStream and createFromFetch from react-server-dom-webpack/client.
+// This code expects webpack globals, so we need to polyfill them on the server:
+//
+// 1. __webpack_chunk_load__ needed by preloadModule
+// https://github.com/facebook/react/blob/8e2bde6f2751aa6335f3cef488c05c3ea08e074a/packages/react-server-dom-webpack/src/ReactFlightClientWebpackBundlerConfig.js#L75
+globalThis.__webpack_chunk_load__ = (chunk) => {
+  console.log(chunk);
+  // TODO: how do we polyfill this? Why does the server even want to load webpack chunks?
+  return Promise.resolve();
+};
+// 2. __webpack_require__ needed by requireModule
+// https://github.com/facebook/react/blob/8e2bde6f2751aa6335f3cef488c05c3ea08e074a/packages/react-server-dom-webpack/src/ReactFlightClientWebpackBundlerConfig.js#L94
+// TODO: this needs to use react-client-manifest to look up. In production, this is a number
+globalThis.__webpack_require__ = (name) => require(path.join('../', name));
+
+const {Worker, MessageChannel} = require('node:worker_threads');
+const {Readable} = require('node:stream');
 const express = require('express');
 const compress = require('compression');
 const {readFileSync} = require('fs');
 const {unlink, writeFile} = require('fs').promises;
-const {renderToPipeableStream} = require('react-server-dom-webpack/server');
+const ReactDOMServer = require('react-dom/server');
+const {createFromReadableStream} = require('react-server-dom-webpack/client');
 const path = require('path');
 const {Pool} = require('pg');
 const React = require('react');
-const ReactApp = require('../src/App.server').default;
+const Root = require('../src/Root.client').default;
+const {MessagePortReadable} = require('./MessagePort');
 
 // Don't keep credentials in the source tree in a real app!
 const pool = new Pool(require('../credentials'));
 
 const PORT = process.env.PORT || 4000;
 const app = express();
+const ABORT_DELAY = 10000;
+const assets = {
+  'main.js': '/main.js',
+  'main.css': '/style.css',
+};
 
 app.use(compress());
 app.use(express.json());
+
+/**
+ * We need to use ReactDOMServer in a different thread to
+ * `react-server-dom-webpack/node-register`
+ * so that it is not affected by the code mod.
+ *
+ * We do this by starting a Worker thread.
+ * __This has not been tested for performance__
+ *
+ * Alternatively, we could set up a proxy server.
+ */
+const worker = new Worker('./server/flight.server.js', {
+  execArgv: ['--conditions=react-server'],
+});
+
+worker.on('message', console.log);
+worker.on('error', console.error);
+worker.on('exit', (code) => {
+  throw new Error(`Worker stopped with exit code ${code}`);
+});
+
+async function sendResponseDOM(req, res) {
+  let didError = false;
+  const initialLocation = {
+    selectedId: Number(req.query.selectedId) || null,
+    isEditing: req.query.isEditing === 'true',
+    searchText: req.query.searchText || '',
+  };
+
+  await waitForWebpack();
+  const manifest = readFileSync(
+    path.resolve(__dirname, '../build/react-client-manifest.json'),
+    'utf8'
+  );
+  const moduleMap = JSON.parse(manifest);
+  const stream = ReactDOMServer.renderToPipeableStream(
+    React.createElement(Root, {
+      assets,
+      initialLocation,
+      getServerComponent: (key) => {
+        const props = JSON.parse(key);
+        return createFromReadableStream(
+          Readable.toWeb(getServerComponentStream(props, moduleMap))
+        );
+      },
+    }),
+    {
+      bootstrapScripts: [assets['main.js']],
+      onShellReady() {
+        res.statusCode = didError ? 500 : 200;
+        res.setHeader('Content-type', 'text/html');
+        stream.pipe(res);
+      },
+      onError(x) {
+        didError = true;
+        console.error(x);
+      },
+    }
+  );
+  setTimeout(() => stream.abort(), ABORT_DELAY);
+  // To support users without JS:
+  // const stream = ReactDOMServer.renderToNodeStream(
+  //   React.createElement(Root, {
+  //     assets,
+  //     TODO: getServerComponent
+  //     initialLocation,
+  //   })
+  // );
+  // statusPort.postMessage(200);
+  // stream.pipe(res);
+}
 
 app
   .listen(PORT, () => {
@@ -76,31 +169,41 @@ function handleErrors(fn) {
 
 app.get(
   '/',
-  handleErrors(async function(_req, res) {
+  handleErrors(async function(req, res) {
     await waitForWebpack();
-    const html = readFileSync(
-      path.resolve(__dirname, '../build/index.html'),
-      'utf8'
-    );
-    // Note: this is sending an empty HTML shell, like a client-side-only app.
-    // However, the intended solution (which isn't built out yet) is to read
-    // from the Server endpoint and turn its response into an HTML stream.
-    res.send(html);
+    await sendResponseDOM(req, res);
   })
 );
 
 async function renderReactTree(res, props) {
+  res.socket.on('error', (error) => {
+    console.error('Fatal', error);
+  });
   await waitForWebpack();
   const manifest = readFileSync(
     path.resolve(__dirname, '../build/react-client-manifest.json'),
     'utf8'
   );
   const moduleMap = JSON.parse(manifest);
-  const {pipe} = renderToPipeableStream(
-    React.createElement(ReactApp, props),
-    moduleMap
+  const readable = getServerComponentStream(props, moduleMap);
+  res.statusCode = 200;
+  res.setHeader('Content-type', 'text/html');
+  readable.pipe(res);
+}
+
+function getServerComponentStream(props, moduleMap) {
+  const responseChannel = new MessageChannel();
+  const readable = new MessagePortReadable(responseChannel.port2);
+
+  worker.postMessage(
+    {
+      responsePort: responseChannel.port1,
+      props,
+      moduleMap,
+    },
+    [responseChannel.port1]
   );
-  pipe(res);
+  return readable;
 }
 
 function sendResponse(req, res, redirectToId) {

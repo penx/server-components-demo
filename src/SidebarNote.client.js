@@ -44,7 +44,7 @@ export default function SidebarNote({id, title, children, expandedChildren}) {
             ? 'var(--gray-80)'
             : isActive
             ? 'var(--tertiary-blue)'
-            : '',
+            : undefined,
           border: isActive
             ? '1px solid var(--primary-border)'
             : '1px solid transparent',
