@@ -37,7 +37,7 @@ export default function SidebarNote({id, title, children, expandedChildren}) {
         isExpanded ? 'note-expanded' : '',
       ].join(' ')}>
       {children}
-      <button
+      <a
         className="sidebar-note-open"
         style={{
           backgroundColor: isPending
@@ -49,7 +49,15 @@ export default function SidebarNote({id, title, children, expandedChildren}) {
             ? '1px solid var(--primary-border)'
             : '1px solid transparent',
         }}
-        onClick={() => {
+        href={`?${new URLSearchParams({
+          selectedId: id,
+          ...(location.searchText
+            ? {
+                searchText: location.searchText,
+              }
+            : {}),
+        })}`}
+        onClick={(e) => {
           startTransition(() => {
             setLocation((loc) => ({
               selectedId: id,
@@ -57,9 +65,10 @@ export default function SidebarNote({id, title, children, expandedChildren}) {
               searchText: loc.searchText,
             }));
           });
+          e.preventDefault();
         }}>
         Open note for preview
-      </button>
+      </a>
       <button
         className="sidebar-note-toggle-expand"
         onClick={(e) => {

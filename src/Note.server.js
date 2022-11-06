@@ -20,7 +20,7 @@ export default function Note({selectedId, isEditing}) {
       ? use(fetch(`http://localhost:4000/notes/${selectedId}`))
       : null;
 
-  const note = response ? use(response.json()) : null;
+  const note = response ? use(response.json().catch(() => null)) : null;
 
   if (note === null) {
     if (isEditing) {

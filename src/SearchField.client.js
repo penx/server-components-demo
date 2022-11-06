@@ -16,12 +16,23 @@ export default function SearchField() {
   const [text, setText] = useState(location.searchText);
   const [isSearching, startSearching] = useTransition();
   return (
-    <form className="search" role="search" onSubmit={(e) => e.preventDefault()}>
+    <form
+      className="search"
+      autoComplete="off"
+      role="search"
+      onSubmit={(e) => e.preventDefault()}>
       <label className="offscreen" htmlFor="sidebar-search-input">
         Search for a note by title
       </label>
+      {location.selectedId ? (
+        <input type="hidden" name="selectedId" value={location.selectedId} />
+      ) : null}
+      {location.isEditing ? (
+        <input type="hidden" name="isEditing" value={location.isEditing} />
+      ) : null}
       <input
         id="sidebar-search-input"
+        name="searchText"
         placeholder="Search"
         value={text}
         onChange={(e) => {

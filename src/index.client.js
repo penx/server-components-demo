@@ -23,7 +23,7 @@ const getServerComponent = (key) =>
 hydrateRoot(
   document,
   <Root
-    assets={window.assetManifest}
+    stylesheets={window.stylesheets}
     getServerComponent={getServerComponent}
     initialLocation={initialLocation}
   />

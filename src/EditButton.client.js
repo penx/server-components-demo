@@ -11,17 +11,26 @@ import {useTransition} from 'react';
 import {useLocation} from './LocationContext.client';
 
 export default function EditButton({noteId, children}) {
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
   const [isPending, startTransition] = useTransition();
   const isDraft = noteId == null;
   return (
-    <button
+    <a
       className={[
         'edit-button',
         isDraft ? 'edit-button--solid' : 'edit-button--outline',
       ].join(' ')}
       disabled={isPending}
-      onClick={() => {
+      href={`?${new URLSearchParams({
+        selectedId: noteId,
+        isEditing: true,
+        ...(location.searchText
+          ? {
+              searchText: location.searchText,
+            }
+          : {}),
+      })}`}
+      onClick={(e) => {
         startTransition(() => {
           setLocation((loc) => ({
             selectedId: noteId,
@@ -29,9 +38,10 @@ export default function EditButton({noteId, children}) {
             searchText: loc.searchText,
           }));
         });
+        e.preventDefault();
       }}
       role="menuitem">
       {children}
-    </button>
+    </a>
   );
 }

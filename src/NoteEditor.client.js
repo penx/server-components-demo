@@ -62,11 +62,13 @@ export default function NoteEditor({noteId, initialTitle, initialBody}) {
 
   const isDraft = noteId === null;
   return (
-    <div className="note-editor">
-      <form
-        className="note-editor-form"
-        autoComplete="off"
-        onSubmit={(e) => e.preventDefault()}>
+    <form
+      className="note-editor"
+      autoComplete="off"
+      method="POST"
+      action={noteId ? `/notes/${noteId}` : '/notes'}
+      onSubmit={(e) => e.preventDefault()}>
+      <div className="note-editor-form">
         <label className="offscreen" htmlFor="note-title-input">
           Enter a title for your note
         </label>
@@ -74,6 +76,7 @@ export default function NoteEditor({noteId, initialTitle, initialBody}) {
           id="note-title-input"
           type="text"
           value={title}
+          name="title"
           onChange={(e) => {
             setTitle(e.target.value);
           }}
@@ -84,17 +87,19 @@ export default function NoteEditor({noteId, initialTitle, initialBody}) {
         <textarea
           id="note-body-input"
           value={body}
+          name="body"
           onChange={(e) => {
             setBody(e.target.value);
           }}
         />
-      </form>
+      </div>
       <div className="note-editor-preview">
         <div className="note-editor-menu" role="menubar">
           <button
             className="note-editor-done"
             disabled={isSaving || isNavigating}
             onClick={() => handleSave()}
+            type="submit"
             role="menuitem">
             <img
               src="checkmark.svg"
@@ -110,6 +115,9 @@ export default function NoteEditor({noteId, initialTitle, initialBody}) {
               className="note-editor-delete"
               disabled={isDeleting || isNavigating}
               onClick={() => handleDelete()}
+              type="submit"
+              name="action"
+              value="delete"
               role="menuitem">
               <img
                 src="cross.svg"
@@ -128,7 +136,7 @@ export default function NoteEditor({noteId, initialTitle, initialBody}) {
         <h1 className="note-title">{title}</h1>
         <NotePreview title={title} body={body} />
       </div>
-    </div>
+    </form>
   );
 }
 

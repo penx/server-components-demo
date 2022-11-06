@@ -61,6 +61,7 @@ const assets = {
 
 app.use(compress());
 app.use(express.json());
+app.use(express.urlencoded());
 
 /**
  * We need to use ReactDOMServer in a different thread to
@@ -98,7 +99,7 @@ async function sendResponseDOM(req, res) {
   const moduleMap = JSON.parse(manifest);
   const stream = ReactDOMServer.renderToPipeableStream(
     React.createElement(Root, {
-      assets,
+      stylesheets: [assets['main.css']],
       initialLocation,
       getServerComponent: (key) => {
         const props = JSON.parse(key);
@@ -124,12 +125,17 @@ async function sendResponseDOM(req, res) {
   // To support users without JS:
   // const stream = ReactDOMServer.renderToNodeStream(
   //   React.createElement(Root, {
-  //     assets,
-  //     TODO: getServerComponent
+  //     stylesheets: [assets['main.css']],
+  //     scripts: [assets['main.js']],
+  //     getServerComponent: (key) => {
+  //       const props = JSON.parse(key);
+  //       return createFromReadableStream(
+  //         Readable.toWeb(getServerComponentStream(props, moduleMap))
+  //       );
+  //     },
   //     initialLocation,
   //   })
   // );
-  // statusPort.postMessage(200);
   // stream.pipe(res);
 }
 
@@ -206,17 +212,33 @@ function getServerComponentStream(props, moduleMap) {
   return readable;
 }
 
-function sendResponse(req, res, redirectToId) {
-  const location = JSON.parse(req.query.location);
-  if (redirectToId) {
-    location.selectedId = redirectToId;
+function sendResponse(req, res, redirect, api) {
+  let location;
+  try {
+    location = JSON.parse(req.query.location);
+  } catch (e) {
+    location = {};
+  }
+  if (redirect) {
+    location = {
+      ...location,
+      ...redirect,
+    };
   }
   res.set('X-Location', JSON.stringify(location));
-  renderReactTree(res, {
-    selectedId: location.selectedId,
-    isEditing: location.isEditing,
-    searchText: location.searchText,
-  });
+  if (!api || req.header('content-type') === 'application/json') {
+    renderReactTree(res, {
+      selectedId: location.selectedId,
+      isEditing: location.isEditing,
+      searchText: location.searchText,
+    });
+  } else {
+    res.redirect(`/?${new URLSearchParams(location)}`);
+  }
+}
+
+function sendApiResponse(req, res, redirect) {
+  sendResponse(req, res, redirect, true);
 }
 
 app.get('/react', function(req, res) {
@@ -239,7 +261,31 @@ app.post(
       req.body.body,
       'utf8'
     );
-    sendResponse(req, res, insertedId);
+    sendApiResponse(req, res, {selectedId: insertedId});
+  })
+);
+
+app.post(
+  '/notes/:id',
+  handleErrors(async function(req, res) {
+    const now = new Date();
+    const updatedId = Number(req.params.id);
+    if (req.body.action === 'delete') {
+      await pool.query('delete from notes where id = $1', [req.params.id]);
+      await unlink(path.resolve(NOTES_PATH, `${req.params.id}.md`));
+      res.redirect('/');
+    } else {
+      await pool.query(
+        'update notes set title = $1, body = $2, updated_at = $3 where id = $4',
+        [req.body.title, req.body.body, now, updatedId]
+      );
+      await writeFile(
+        path.resolve(NOTES_PATH, `${updatedId}.md`),
+        req.body.body,
+        'utf8'
+      );
+      res.redirect(`/?selectedId=${updatedId}`);
+    }
   })
 );
 
@@ -257,7 +303,7 @@ app.put(
       req.body.body,
       'utf8'
     );
-    sendResponse(req, res, null);
+    sendApiResponse(req, res, {isEditing: false});
   })
 );
 
@@ -266,7 +312,7 @@ app.delete(
   handleErrors(async function(req, res) {
     await pool.query('delete from notes where id = $1', [req.params.id]);
     await unlink(path.resolve(NOTES_PATH, `${req.params.id}.md`));
-    sendResponse(req, res, null);
+    sendResponse(req, res, {selectedId: undefined, isEditing: undefined});
   })
 );
 
@@ -284,7 +330,12 @@ app.get(
     const {rows} = await pool.query('select * from notes where id = $1', [
       req.params.id,
     ]);
-    res.json(rows[0]);
+    if (rows?.[0]) {
+      res.json(rows[0]);
+    } else {
+      res.statusCode = 404;
+      res.send();
+    }
   })
 );
 

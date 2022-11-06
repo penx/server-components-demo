@@ -13,10 +13,15 @@ import {GetServerComponentProvider, useServerResponse} from './Cache.client';
 import Html from './Html';
 import {LocationContext} from './LocationContext.client';
 
-export default function Root({assets, initialLocation, getServerComponent}) {
+export default function Root({
+  stylesheets,
+  scripts,
+  initialLocation,
+  getServerComponent,
+}) {
   return (
     <GetServerComponentProvider value={getServerComponent}>
-      <Html assets={assets} title="Hello">
+      <Html stylesheets={stylesheets} scripts={scripts} title="Hello">
         <Suspense>
           <ErrorBoundary FallbackComponent={Error}>
             <Content initialLocation={initialLocation} />

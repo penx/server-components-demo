@@ -227,6 +227,7 @@ hr {
   cursor: pointer;
   font-weight: 700;
   outline-style: none;
+  text-decoration: none;
 }
 .edit-button--solid {
   background: var(--primary-blue);
@@ -294,6 +295,7 @@ ul.notes-list {
 .sidebar-menu > .search {
   position: relative;
   flex-grow: 1;
+  margin-bottom: 0;
 }
 .sidebar-note-list-item {
   position: relative;
