@@ -16,6 +16,26 @@ const React = require('react');
 const ReactApp = require('../src/App.server').default;
 const {MessagePortWritable} = require('./MessagePort');
 
+let proxy = new Proxy(
+  {},
+  {
+    get(_, id) {
+      return new Proxy(
+        {},
+        {
+          get(_, n) {
+            return {
+              id,
+              chunks: [],
+              name: n,
+            };
+          },
+        }
+      );
+    },
+  }
+);
+
 parentPort.on('message', async ({responsePort, props, moduleMap}) => {
   assert(responsePort instanceof MessagePort);
 
@@ -23,7 +43,7 @@ parentPort.on('message', async ({responsePort, props, moduleMap}) => {
 
   const stream = renderToPipeableStream(
     React.createElement(ReactApp, props),
-    moduleMap
+    moduleMap ?? proxy
   );
   stream.pipe(res);
 });

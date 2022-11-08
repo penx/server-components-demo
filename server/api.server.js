@@ -19,20 +19,11 @@ babelRegister({
   ],
 });
 
-// Our client code imports createFromReadableStream and createFromFetch from react-server-dom-webpack/client.
-// This code expects webpack globals, so we need to polyfill them on the server:
-//
-// 1. __webpack_chunk_load__ needed by preloadModule
-// https://github.com/facebook/react/blob/8e2bde6f2751aa6335f3cef488c05c3ea08e074a/packages/react-server-dom-webpack/src/ReactFlightClientWebpackBundlerConfig.js#L75
-globalThis.__webpack_chunk_load__ = (chunk) => {
-  console.log(chunk);
-  // TODO: how do we polyfill this? Why does the server even want to load webpack chunks?
-  return Promise.resolve();
-};
-// 2. __webpack_require__ needed by requireModule
+// __webpack_require__ is needed by requireModule.
 // https://github.com/facebook/react/blob/8e2bde6f2751aa6335f3cef488c05c3ea08e074a/packages/react-server-dom-webpack/src/ReactFlightClientWebpackBundlerConfig.js#L94
-// TODO: this needs to use react-client-manifest to look up. In production, this is a number
-globalThis.__webpack_require__ = (name) => require(path.join('../', name));
+// Note that in flight.server we pass a proxy object that creates the `name` passed here.
+globalThis.__webpack_require__ = (name) =>
+  require(path.relative(path.join(__filename, '..'), new URL(name).pathname));
 
 const {Worker, MessageChannel} = require('node:worker_threads');
 const {Readable} = require('node:stream');
@@ -92,11 +83,7 @@ async function sendResponseDOM(req, res) {
   };
 
   await waitForWebpack();
-  const manifest = readFileSync(
-    path.resolve(__dirname, '../build/react-client-manifest.json'),
-    'utf8'
-  );
-  const moduleMap = JSON.parse(manifest);
+
   const stream = ReactDOMServer.renderToPipeableStream(
     React.createElement(Root, {
       stylesheets: [assets['main.css']],
@@ -104,7 +91,7 @@ async function sendResponseDOM(req, res) {
       getServerComponent: (key) => {
         const props = JSON.parse(key);
         return createFromReadableStream(
-          Readable.toWeb(getServerComponentStream(props, moduleMap))
+          Readable.toWeb(getServerComponentStream(props, null))
         );
       },
     }),
